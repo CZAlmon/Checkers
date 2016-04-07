@@ -1,0 +1,178 @@
+<!--
+Copyright (C) 2014 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <style type="text/css">
+	  body {
+	    overflow:hidden;
+	  }
+      div{
+	    height:720PX;
+	    width:1280PX;
+	    text-align:center;
+	    border:0px solid silver;
+	    display: table-cell;
+	    vertical-align:middle;
+	    color:#FFFFFF;
+	    background-color:#000000;
+	    font-weight:bold;
+	    font-family:Verdana, Geneva, sans-serif;
+	    font-size:40px;
+	}
+    </style>
+    <title>Cast Hello Text</title>
+  </head>
+  <body>
+	<DIV id="message">Talk to me</DIV>
+    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js"></script>
+    <script type="text/javascript">
+      window.onload = function() {
+        cast.receiver.logger.setLevelValue(0);
+        window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
+        console.log('Starting Receiver Manager');
+
+        // handler for the 'ready' event
+        castReceiverManager.onReady = function(event) {
+          console.log('Received Ready event: ' + JSON.stringify(event.data));
+          window.castReceiverManager.setApplicationState("Application status is ready...");
+        };
+
+        // handler for 'senderconnected' event
+        castReceiverManager.onSenderConnected = function(event) {
+          console.log('Received Sender Connected event: ' + event.data);
+          console.log(window.castReceiverManager.getSender(event.data).userAgent);
+        };
+
+        // handler for 'senderdisconnected' event
+        castReceiverManager.onSenderDisconnected = function(event) {
+          console.log('Received Sender Disconnected event: ' + event.data);
+          if (window.castReceiverManager.getSenders().length == 0) {
+	        window.close();
+	      }
+        };
+
+        // handler for 'systemvolumechanged' event
+        castReceiverManager.onSystemVolumeChanged = function(event) {
+          console.log('Received System Volume Changed event: ' + event.data['level'] + ' ' +
+              event.data['muted']);
+        };
+
+        // create a CastMessageBus to handle messages for a custom namespace
+        window.messageBus =
+          window.castReceiverManager.getCastMessageBus('urn:x-cast:com.example.casthelloworld');
+
+        // handler for the CastMessageBus message event
+        window.messageBus.onMessage = function(event) {
+          console.log('Message [' + event.senderId + ']: ' + event.data);
+
+          var theData = JSON.parse(event.data);
+          var UserID = theData["UserID"];
+
+          if (player1set && player2set)
+          {
+            //Do nothing.
+          }
+          else
+          {
+            setPlayer1(theData["UserID"]);
+          }
+
+          //Building the message
+          var messageBack = buildMessageBack(UserID);
+
+          //Sending message back to receievr
+          window.messageBus.send(event.senderId, JSON.stringify(messageBack));
+
+        }
+
+        //Setting variables to authenticate user
+        var player1set = false;
+        var player2set = false;
+        var player1;
+        var player2;
+
+        //Function to set Player1 as the first UserID
+        function setPlayer1(UserID) {
+          if (player1set) {
+            setPlayer2(UserID);
+          }
+          else {
+            player1 = UserID;
+            player1set = true;
+            displayText("Player 1 is set");
+          }
+        }
+
+        //Function to set Player2 as the second UserID
+        function setPlayer2(UserID) {
+          if (UserID === player1) {
+            //Set nothing.
+          }
+          else {
+            player2 = UserID;
+            player2set = true;
+            displayText("Player 2 is set");
+          }
+        }
+
+        function getPlayer(UserID) {
+          if (UserID === player1)
+          {
+            return 1;
+          }
+          if (UserID === player2)
+          {
+            return 2;
+          }
+        }
+
+
+        function buildMessageBack(UserID) {
+          var playerNum = getPlayer(UserID);
+          //var playerTurn = getTurn();
+          //var validMove = getValidity();
+
+          //These are placeholders to be deleted later
+          var playerTurn = false;
+          var validMove = false;
+
+          //Making the object
+          var messageBack = {"player":1, "turn":true, "validmove":true};
+
+          //Filling in the actual values
+          messageBack["player"] = playerNum;
+          messageBack["turn"] = playerTurn;
+          messageBack["validmove"] = validMove;
+
+          return messageBack;
+        }
+
+
+        // initialize the CastReceiverManager with an application status message
+        window.castReceiverManager.start({statusText: "Application is starting"});
+        console.log('Receiver Manager started');
+      };
+
+      // utility function to display the text message in the input field
+      function displayText(text) {
+        console.log(text);
+        document.getElementById("message").innerHTML=text;
+        window.castReceiverManager.setApplicationState(text);
+      };
+    </script>
+  </body>
+</html>
