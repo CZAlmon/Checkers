@@ -1,5 +1,3 @@
-# Checkers
-
 ============
 Disclaimer:
 ============
@@ -21,51 +19,24 @@ CS 499 Senior Design Project, Team 13 "Chromecast Checkers":
 
 Folder Contents:
 
-	Final Deliverables/
-		
-		Android APK/
-			ChromecastCheckersFinal.apk											-Final installer file for the Android Companion application.
-		
-		Code Files/
-			Android Code/
-				MainActivity.java												-Main source code for the Android Companion application
-			Chromecast Server Code/ 
-				angular.min.js													-Dependency for receiver.html, received from: https://docs.angularjs.org/misc/downloading
-				ngCheckers.css													-CSS Dependency for receiver.html, sets the look for the checkers board
-				receiver.html													-Main source code for the Chromecast Server Application.
-		
-		Demonstration Videos/
-			Chromecast_Checkers_Demonstration.mp4								-Final Video Demonstration of the applications working in conjuction.
-			Demonstration_With_a_Bug.mp4										-Video Demonstration with a minor bug, the Android Companion Application was not changing the "Your Turn" indicator. This was fixed, shown in Chromecast_Checkers_Demonstration.mp4
-		
-		Diagrams and UI Pictures/
-			CheckersDoubleJump.png												-PNG File showing final UI for a double jump
-			CheckersKings.png													-PNG File showing final UI with Kings
-			CheckersPlayer1YourTurn.png											-PNG File showing final UI for Player 1's turn
-			CheckersPlayer2Wait.png												-PNG File showing final UI for Player 2, waiting for turn
-			CheckersStart.png													-PNG File showing final UI when starting the game
-			CheckersWin.png														-PNG File showing final UI when ending the game
-			DiagramOne.png														-Simple Diagram showing how the devices/applications all connect
-			DiagramTwo.jpg														-More complex diagram on how the devices communicate with one another
-			DiagramThree.png													-More complex individual diagrams on how the applications work themselves
-			DiagramFour.png														-More complex individual diagrams on how the applications work themselves
-			DiagramFive.png														-JSON Diagram on how the JSON messages are deilvered for communication method
-			DiagramSix.png														-Google Cast SDK Console example, see below
-			potlogo.jpg															-Chromecast Checkers and Android Application Logo
-		
-		Documentation Files/
-			ChromecastCheckersDesign.pdf										-Rough design of project, done by midterm, showing logic and diagram explanations
-			FINALpresentation.pdf												-Final slides shown at our presentation to the professor and audience
-			presentationMidTerm.pdf												-Slides shown at our presentation to the professor and class at midterm
-			Testing.pdf															-Test cases before implementation
-			TestingImplementation.pdf											-Test cases after implementation with comments
-		
-		Website Files/
-			*.html																-All HTML Files from https://sites.google.com/site/cs499checkersapp/home - they may appear weird, see live site instead
-			README.txt															-README File for the website document. Has a link to live website, https://sites.google.com/site/cs499checkersapp/home
-		
+	Code Files/
+		Android Code/
+			MainActivity.java												-Main source code for the Android Companion application
+		Chromecast Server Code/ 
+			angular.min.js													-Dependency for receiver.html, received from: https://docs.angularjs.org/misc/downloading
+			ngCheckers.css													-CSS Dependency for receiver.html, sets the look for the checkers board
+			receiver.html													-Main source code for the Chromecast Server Application.
+	
+
+	Documentation Files/
+		ChromecastCheckersDesign.pdf										-Rough design of project, done by midterm, showing logic and diagram explanations
+		FINALpresentation.pdf												-Final slides shown at our presentation to the professor and audience
+		presentationMidTerm.pdf												-Slides shown at our presentation to the professor and class at midterm
+		Testing.pdf															-Test cases before implementation
+		TestingImplementation.pdf											-Test cases after implementation with comments
 		FinalReport.pdf															-Final report documentation with diagrams, UI pictures, explanations, and exposition of project as a whole
-		README.txt																-This Current Document
+
+
 
 
 ======================
@@ -133,5 +104,7 @@ For more in-depth on the game guide or how to use the source code files, please 
 For more in-depth on the implementation of the game code, please see the final report, sections Program Specifications, Planning, Design, and Implementation
 
 For in-depth analysis on future enchancements to this project, please see the final report, section Future Enhancements/Maintenance
+
+For project website see: https://sites.google.com/site/cs499checkersapp/home
 
 
