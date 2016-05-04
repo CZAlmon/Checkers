@@ -1,0 +1,755 @@
+<!--------------------------------------------------------------
+|Chromecast based checkers game, controlled by Android  device.| 
+|Developed by: Omid Omidi, Matt Dunbar, Zach Almon             |
+|Spring 2016                                                   |
+|A game that will be displayed on TV, using chromecast.        |
+|Two users connect to chromecast using developed android       |
+|application, to remotely play the game agains eachother.      |
+|This is the receiver file that contains the google cast api   |
+|and game code.                                                |
+--------------------------------------------------------------->
+
+
+<!DOCTYPE html>
+<html ng-app='ngCheckers'>
+
+  <head>
+
+    <link rel="stylesheet" type="text/css" href="ngCheckers.css">
+  </head>
+
+  <body ng-controller="checkersCtrl">
+  <center>
+	<div class="center" style="font-size:50px" style="font-weight: bold;">Chromecast Checkers</div>
+  </center>
+
+  <center>
+    <div id="gameContainer">
+	  <div>
+	<div id="gameover" style="font-size:100px" style="font-weight: bold;"></div>
+
+		<div class="row" ng-repeat="row in board">
+
+            <div class="square" ng-style="setClass(square)" ng-repeat="square in row track by $index" ng-click="select(square)">
+
+              <div ng-style="setStyling(square)" class="circle">
+
+			    <span style="font-weight: bold;"> {{square.isKing ? 'K' : ''}}</span>
+                </div>
+              </div>
+          </div>
+      </div>
+    </div>
+  </center>
+
+    <center>
+    <div id="playerTurnDisplay" style="font-weight: bold;">Player Turn : {{player}}</div>
+    <div id="redScoreDisplay" style="font-weight: bold;">Red Score : {{redScore}}</div>
+    <div id="blackScoreDisplay" style="font-weight: bold;">Black Score : {{blackScore}}</div>
+    <div id="gameOverDisplay" style="font-weight: bold; font-size:50px"></div>
+    </center>
+	
+<!-- Automation buttons for testing without a phone -->
+  <!--
+	<button ng-click="left()">Left</button>
+	<button ng-click="right()">Right</button>
+	<button ng-click="up()">Up</button>
+	<button ng-click="down()">Down</button>
+	<button ng-click="SelectPiece()">SelectPiece</button>
+	<button id="reset" onclick="Restart()" disabled>Restart</button>
+  -->
+    <script src="angular.min.js"></script>
+    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js"></script>
+
+    <script>
+
+//Status of the game
+var gameStatus = "active";
+
+//AngularJs module and controller
+angular.module('ngCheckers', [])
+
+  .controller('checkersCtrl', function($scope, $timeout) {
+    var RED = "Red", BLACK = "Black", BOARD_WIDTH = 8,
+        selectedSquare = null;
+
+	//Function to handle each piece
+	//Which player and position of that piece initializer
+    function Piece(player, x, y) {
+      this.player = player;
+      this.x = x;
+      this.y = y;
+      this.isKing = false;
+      this.isChoice = false;
+	  this.isSelect = false;
+      this.matados = [];
+    }
+
+
+	//Start position of highlight
+	var y=4;
+	var x=4;
+
+	//At start of every game
+	$scope.newGame = function() {
+	  //Red player always starts the game and scores are initialized to 0
+      $scope.player = RED;
+      $scope.redScore = 0;
+      $scope.blackScore = 0;
+
+      $scope.board = [];
+
+	  //Insert pieces on first 3 and last 3 rows on board
+      for (var i = 0; i < BOARD_WIDTH; i++) {
+        $scope.board[i] = [];
+        for (var j = 0; j < BOARD_WIDTH; j++) {
+		//Insert black pieces on on rows 0 and 2 columns 0,2,4,6 and row 1 columns 1,3,5,7
+          if ( (i === 0 &&  j % 2 === 0) || (i === 1 && j % 2 === 1) || (i === 2 && j % 2 === 0) ){
+            $scope.board[i][j] = new Piece(BLACK, j, i);
+		//Insert red pieces on on rows 0 and 2 columns 0,2,4,6 and row 1 columns 1,3,5,7
+          } else if ( (i === BOARD_WIDTH - 2 && j % 2 === 0) || (i === BOARD_WIDTH - 1 && j % 2 === 1)|| (i === BOARD_WIDTH - 3 && j % 2 === 1) ){
+            $scope.board[i][j] = new Piece(RED, j, i);
+		//Don't insert ant piece on other positions
+          } else {
+            $scope.board[i][j] = new Piece(null, j, i);
+          }
+        }
+      }
+    }
+
+	//start the new game
+    $scope.newGame();
+
+	//Function to place either red or black circles inside board's square pieces
+    $scope.setStyling = function(square) {
+	  if (square.player === RED)
+        return {"backgroundColor": "#FF0000"};
+      else if (square.player === BLACK)
+        return {"backgroundColor":"#A3A3A3"};
+      return {"backgroundColor": "none"};
+    }
+
+	//highlight the board squares
+	//If only moving, than green. If piece selected, then blue for piece and possible move positions, otherwise default color(black/white)
+    $scope.setClass = function(square) {
+      if (square.y % 2 === 0) {
+        if (square.x % 2 === 0) {
+          return {"backgroundColor": square.isSelect ? "green" : (square.isChoice ? "blue" : "black")};
+        } else {
+          return {"backgroundColor": square.isSelect ? "green" : (square.isChoice ? "blue" : "white")};
+        }
+      } else {
+        if (square.x % 2 === 1) {
+          return {"backgroundColor": square.isSelect ? "green" : (square.isChoice ? "blue" : "black")};
+        } else {
+          return {"backgroundColor": square.isSelect ? "green " : (square.isChoice ? "blue" : "white")};
+        }
+      }
+    }
+
+	//start highliting the position which was initialized
+	var start = $scope.board[y][x];
+    start.isSelect = true;
+	
+	//Function to select the piece that has the same position as the highlighted square
+	$scope.SelectPiece = function() {
+
+		$scope.select($scope.board[y][x]);
+
+
+	}
+	
+	//Function to move to highlighted piece to the left
+	$scope.left = function() {
+
+
+		x-=1;
+		if (x < 0) x+=1;
+			  //make new highlight square, and delet the old one
+		      var me = $scope.board[y][x];
+			  var oldme = $scope.board[y][x+1];
+			  me.isSelect = true;
+			  oldme.isSelect = false;
+
+	}
+
+	//Function to move to highlighted piece to the right
+	$scope.right = function() {
+
+
+		x+=1;
+		if (x > 8) x-=1;
+		//make new highlight square, and delet the old one
+		      var me = $scope.board[y][x];
+			  var oldme = $scope.board[y][x-1];
+			  me.isSelect = true;
+			  oldme.isSelect = false;
+
+	}
+
+	//Function to move to highlighted piece up
+	$scope.up = function() {
+
+
+		y-=1;
+		if (y < 0) y+=1;
+		//make new highlight square, and delet the old one
+		      var me = $scope.board[y][x];
+			  var oldme = $scope.board[y+1][x];
+			  me.isSelect = true;
+			  oldme.isSelect = false;
+
+	}
+
+	//Function to move to highlighted piece down
+	$scope.down = function() {
+
+
+		y+=1;
+		if (y > 8) y-=1;
+		//make new highlight square, and delet the old one
+		      var me = $scope.board[y][x];
+			  var oldme = $scope.board[y-1][x];
+			  me.isSelect = true;
+			  oldme.isSelect = false;
+
+	}
+
+	
+	//Function to select the piece that is highlighted
+    $scope.select = function(square) {
+
+	//if a piece is selected, and the new selected position is a valid move position, then move the piece and reset the choice
+	//if the selected position is current players piece, select that piece
+	//any other positions, do not select
+      if (selectedSquare !== null && !square.player) {
+        movePiece(square);
+        resetChoices();
+      } else if (square.player === $scope.player) {
+
+        selectedSquare = square;
+        resetChoices();
+
+        setChoices(selectedSquare.x, selectedSquare.y, 1, [],-1,-1);
+
+      } else {
+
+        selectedSquare = null;
+      }
+      console.log($scope.board);
+    }
+
+	//function to reset choices
+	//for every position in the board, reset them(unselect them)
+    function resetChoices() {
+      for (var i = 0; i < BOARD_WIDTH; i++) {
+        for (var j = 0; j < BOARD_WIDTH; j++) {
+          $scope.board[i][j].isChoice = false;
+          $scope.board[i][j].matados = [];
+        }
+      }
+    }
+
+	//function to move selected piece
+	//when selecting destination position, if jumb is due, then call the jump function
+    function movePiece(square) {
+      if (square.isChoice) {
+        // Jump dude
+        for (var i = 0; i < square.matados.length; i++) {
+          jump(square.matados[i]);
+        }
+
+        square.player = selectedSquare.player;
+        square.isKing = selectedSquare.isKing || isKing(square);
+        selectedSquare.player = null;
+        selectedSquare.isKing = false;
+        $scope.player = $scope.player === RED ? BLACK : RED;
+      }
+    }
+
+	//make the red piece king if the y position is 0
+	//make the black piece king if the y position is 7
+    function isKing(square) {
+      if ($scope.player === RED) {
+        if (square.y === 0)
+          return true;
+      } else {
+        if (square.y === BOARD_WIDTH - 1)
+          return true;
+      }
+      return false;
+    }
+
+	//when a jump is due, this function will keep teack of scores, and determines the winner
+    function jump(jumped) {
+      jumped.player = null;
+      jumped.isKing = false;
+	  //if the red score reaches 12, red wins, and gameover function will display that
+      if ($scope.player === RED) {
+        $scope.redScore++;
+        if ($scope.redScore === 12) {
+          $timeout(function() {
+            gameOver(RED);
+          },50)
+        }
+      }
+  	  //else black wins, and gameover function will display that
+      else {
+        $scope.blackScore++;
+        if ($scope.blackScore === 12) {
+          $timeout(function() {
+            gameOver(BLACK);
+          },50)
+        }
+      }
+    }
+
+	//this function will set the choice based on user 
+	//check to see if any of choices is valid, than make a new piece in that position and delet the old one
+	//if jumped over a piece, delete opponent's piece at that position
+    function setChoices(x, y, depth, matados, oldX, oldY) {
+      if (depth > 10) return;
+      var me = $scope.board[y][x];
+	  me.isChoice = true;
+
+      // Upper Choices
+      if ($scope.player === RED || selectedSquare.isKing) {
+        // Upper Left
+        if (x > 0 && y > 0) {
+          var UP_LEFT = $scope.board[y-1][x-1];
+          if (UP_LEFT.player) {
+            if (UP_LEFT.player !== $scope.player) {
+              if ((x > 1 && y > 1) && !(x - 2 === oldX && y - 2 === oldY)) {
+                var UP_LEFT_2 = $scope.board[y-2][x-2];
+                if (!UP_LEFT_2.player) {
+                  UP_LEFT_2.isChoice = true;
+                  var jumpers = matados.slice(0);
+                  if (jumpers.indexOf(UP_LEFT) === -1)
+                    jumpers.push(UP_LEFT);
+                  UP_LEFT_2.matados = jumpers;
+                  setChoices(x-2,y-2,depth+1,jumpers,x,y);
+                }
+              }
+            }
+          } else if (depth === 1) {
+            UP_LEFT.isChoice = true;
+          }
+        }
+
+        // Upper Right
+        if (x < BOARD_WIDTH - 1 && y > 0) {
+          var UP_RIGHT = $scope.board[y-1][x+1];
+          if (UP_RIGHT.player) {
+            if (UP_RIGHT.player !== $scope.player) {
+              if ((x < BOARD_WIDTH - 2 && y > 1) && !(x + 2 === oldX && y - 2 === oldY)) {
+                var UP_RIGHT_2 = $scope.board[y-2][x+2];
+                if (!UP_RIGHT_2.player) {
+                  UP_RIGHT_2.isChoice = true;
+                  var jumpers = matados.slice(0);
+                  if (jumpers.indexOf(UP_RIGHT) === -1)
+                    jumpers.push(UP_RIGHT);
+                  UP_RIGHT_2.matados = jumpers;
+                  setChoices(x+2,y-2,depth+1,jumpers,x,y);
+                }
+              }
+            }
+          } else if (depth === 1) {
+            UP_RIGHT.isChoice = true;
+          }
+        }
+      }
+
+      // Lower Choices
+      if ($scope.player === BLACK || selectedSquare.isKing) {
+        // Lower Left
+        if (x > 0 && y < BOARD_WIDTH - 1) {
+          var LOWER_LEFT = $scope.board[y+1][x-1];
+          if (LOWER_LEFT.player) {
+            if (LOWER_LEFT.player !== $scope.player) {
+              if ((x > 1 && y < BOARD_WIDTH - 2) && !(x - 2 === oldX && y + 2 === oldY)) {
+                var LOWER_LEFT_2 = $scope.board[y+2][x-2];
+                if (!LOWER_LEFT_2.player) {
+                  LOWER_LEFT_2.isChoice = true;
+                  var jumpers = matados.slice(0);
+                  if (jumpers.indexOf(LOWER_LEFT) === -1)
+                    jumpers.push(LOWER_LEFT);
+                  LOWER_LEFT_2.matados = jumpers;
+                  setChoices(x-2,y+2,depth+1,jumpers,x,y);
+                }
+              }
+            }
+          } else if (depth === 1) {
+            LOWER_LEFT.isChoice = true;
+          }
+        }
+
+        // Lower Right
+        if (x < BOARD_WIDTH - 1 && y < BOARD_WIDTH - 1) {
+          var LOWER_RIGHT = $scope.board[y+1][x+1];
+          if (LOWER_RIGHT.player) {
+            if (LOWER_RIGHT.player !== $scope.player) {
+              if ((x < BOARD_WIDTH - 2 && y < BOARD_WIDTH - 2) && !(x + 2 === oldX && y + 2 === oldY)) {
+                var LOWER_RIGHT_2 = $scope.board[y+2][x+2];
+                if (!LOWER_RIGHT_2.player) {
+                  LOWER_RIGHT_2.isChoice = true;
+                  var jumpers = matados.slice(0);
+                  if (jumpers.indexOf(LOWER_RIGHT) === -1)
+                    jumpers.push(LOWER_RIGHT);
+                  LOWER_RIGHT_2.matados = jumpers;
+                  setChoices(x+2,y+2,depth+1,jumpers,x,y);
+                }
+              }
+            }
+          } else if (depth === 1) {
+            LOWER_RIGHT.isChoice = true;
+          }
+        }
+      }
+
+    }
+
+
+    //These variables get a hold of what is displayed as far as text goes
+    //on the main screen so that they can be changed on game end.
+    var playerTurnDisplay = document.getElementById("playerTurnDisplay");
+    var redScoreDisplay = document.getElementById("redScoreDisplay");
+    var blackScoreDisplay = document.getElementById("blackScoreDisplay");
+    var gameOverDisplay = document.getElementById("gameOverDisplay");
+
+    //Function to end the game and display who won to the players.
+    function gameOver(player) {
+
+      gameStatus = "finished";
+
+      var gameResults;
+
+      if (player === RED)
+      {
+        gameResults = "Player 1 wins!";
+      }
+      else
+      {
+        gameResults = "Player 2 wins!";
+      }
+
+      //Hiding everything else except for the gameOverDisplay
+      //which is a huge font that either says "Player 1 wins!" or
+      //"Player 2 wins!"
+      playerTurnDisplay.style.visibility = 'hidden';
+      redScoreDisplay.style.visibility = 'hidden';
+      blackScoreDisplay.style.visibility = 'hidden';
+      gameOverDisplay.innerHTML = gameResults;
+    }
+
+    //Unimplemented code, was going to be used to implement a restart
+    //function.
+    /*
+    $scope.Restart = function() {
+    	location.reload();
+      gameStatus = "active";
+      gameOverDisplay.style.visibility = 'hidden';
+      playerTurnDisplay.style.visibility = 'visible';
+      redScoreDisplay.style.visibility = 'visible';
+      blackScoreDisplay.style.visibility = 'visible';
+  	}
+    */
+
+  });
+
+  //START CHROMECAST CODE
+  window.onload = function() {
+    cast.receiver.logger.setLevelValue(0);
+    window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
+    console.log('Starting Receiver Manager');
+
+    // handler for the 'ready' event
+    castReceiverManager.onReady = function(event) {
+      console.log('Received Ready event: ' + JSON.stringify(event.data));
+      window.castReceiverManager.setApplicationState("Application status is ready...");
+    };
+
+    // handler for 'senderconnected' event
+    castReceiverManager.onSenderConnected = function(event) {
+      console.log('Received Sender Connected event: ' + event.data);
+      console.log(window.castReceiverManager.getSender(event.data).userAgent);
+    };
+
+    // handler for 'senderdisconnected' event
+    castReceiverManager.onSenderDisconnected = function(event) {
+      console.log('Received Sender Disconnected event: ' + event.data);
+      if (window.castReceiverManager.getSenders().length == 0) {
+      window.close();
+    }
+    };
+
+    // handler for 'systemvolumechanged' event
+    castReceiverManager.onSystemVolumeChanged = function(event) {
+      console.log('Received System Volume Changed event: ' + event.data['level'] + ' ' +
+          event.data['muted']);
+    };
+
+    // create a CastMessageBus to handle messages for a custom namespace
+    window.messageBus =
+      window.castReceiverManager.getCastMessageBus('urn:x-cast:com.example.casthelloworld');
+
+
+    //Setting variables to authenticate user
+    var player1set = false; //Stores whether or not player 1 has been set.
+    var player2set = false; //Stores whether or not player 2 has been set.
+    var player1; //Stores UserID of Player 1.
+    var player2; //Stores UserID of Player 2.
+    var senderIDp1; //Stores senderID from Chromecast Sender for Player 1
+    var senderIDp2; //Stores senderID from Chromecast Sender for Player 1
+
+    // handler for the CastMessageBus message event
+    window.messageBus.onMessage = function(event) {
+      console.log('Message [' + event.senderId + ']: ' + event.data);
+
+      //Get the data from the JSON object and get the UserID from the
+      //JSON object.
+      var theData = JSON.parse(event.data);
+      var UserID = theData["UserID"];
+
+      //Check if both of the players have been set, if they have not
+      //call the setPlayer1 function, which in turn checks if Player 1
+      //has been set and if it hasn't, it calls setPlayer2.
+      if (player1set && player2set)
+      {
+        //Do nothing.
+      }
+      else
+      {
+        setPlayer1(theData["UserID"], event.senderId);
+      }
+
+
+      //If it is the player who sent the message's turn, execute the move
+      //on the screen.
+      if (getTurn(getPlayer(UserID)))
+      {
+        executeMove(theData);
+      }
+
+      //If the gamestatus is finished, it sends a command to player 1
+      //that basically shuts the game down.
+      if (gameStatus === "finished")
+      {
+        var endGame = {"player":1, "turn":true, "gamestatus":"finished"};
+        window.messageBus.send(senderIDp1, JSON.stringify(endGame));
+        return;
+      }
+
+      //Building the message to be sent back to the sender application.
+      var messageBack;
+      var otherPlayerMessage;
+
+      //If statement to figure out which message needs to be sent to which
+      //player. Passes buildMessageBack the parameter of which player is
+      //going to get the message and then produces the message based on
+      //that fact.
+      if (UserID === player1)
+      {
+        messageBack = buildMessageBack(player1);
+        otherPlayerMessage = buildMessageBack(player2);
+        window.messageBus.send(senderIDp1, JSON.stringify(messageBack));
+        window.messageBus.send(senderIDp2, JSON.stringify(otherPlayerMessage));
+      }
+      else if (UserID === player2)
+      {
+        messageBack = buildMessageBack(player2);
+        otherPlayerMessage = buildMessageBack(player1);
+        window.messageBus.send(senderIDp2, JSON.stringify(messageBack));
+        window.messageBus.send(senderIDp1, JSON.stringify(otherPlayerMessage));
+      }
+
+
+    }
+
+    //Builds the message that is to be sent back to the sender application
+    //by calling various functions to get the correct information to put inside
+    //of the JSON object. The playerNum (Player1 or Player2), if it's the player's
+    //turn or not (true or false).
+    function buildMessageBack(UserID) {
+      var playerNum = getPlayer(UserID);
+      var playerTurn = getTurn(playerNum);
+
+
+      //Making the object
+      var messageBack = {"player":1, "turn":true, "gamestatus":"active"};
+
+      //Filling in the actual values
+      messageBack["player"] = playerNum;
+      messageBack["turn"] = playerTurn;
+      messageBack["gamestatus"] = gameStatus;
+
+      return messageBack;
+    }
+
+    //Function to set Player1 as the first UserID, checks
+    //if Player1 is set, if it is, call setPlayer2.
+    function setPlayer1(UserID, senderInfo) {
+      if (player1set) {
+        setPlayer2(UserID, senderInfo);
+      }
+      else {
+        player1 = UserID;
+        player1set = true;
+        senderIDp1 = senderInfo;
+        displayText("Player 1 is set");
+      }
+    }
+
+    //Function to set Player2 as the second UserID, checks
+    //if the UserID is equal to player1 if it is not, sets
+    //Player2 to the UserID that it was called with.
+    function setPlayer2(UserID, senderInfo) {
+      if (UserID === player1) {
+        //Set nothing.
+      }
+      else {
+        player2 = UserID;
+        player2set = true;
+        senderIDp2 = senderInfo;
+        displayText("Player 2 is set");
+      }
+    }
+
+    //Gets who is sending the message to the Chromecast
+    //Player 1 or Player 2
+    function getPlayer(UserID) {
+      if (UserID === player1)
+      {
+        return 1;
+      }
+      if (UserID === player2)
+      {
+        return 2;
+      }
+    }
+
+    //Checks what direction or commandtype was called and calls the
+    //appropriate function to execute the move on the screen AKA calling
+    //the function to change what is displayed on the board on the HTML page.
+    function executeMove(theData)
+    {
+      //Gets the scope of the AngularJS game board.
+      var scope = angular.element(document.getElementById("gameContainer")).scope();
+
+      if (theData["direction"] === "right")
+      {
+        scope.$apply(function() {
+          scope.right();
+        });
+      }
+      else if (theData["direction"] === "up")
+      {
+        scope.$apply(function() {
+          scope.up();
+        });
+      }
+      else if (theData["direction"] === "left")
+      {
+        scope.$apply(function() {
+          scope.left();
+        });
+      }
+      else if (theData["direction"] === "down")
+      {
+        scope.$apply(function() {
+          scope.down();
+        });
+      }
+      else if (theData["commandtype"] === "select")
+      {
+        scope.$apply(function() {
+          scope.SelectPiece();
+        });
+      }
+      //If the commandtype is forfeit it basically
+      //does what the gameover function does and sets
+      //things to hidden and then tells the players who
+      //won.
+      else if (theData["commandtype"] === "forfeit")
+      {
+        playerTurnDisplay.style.visibility = 'hidden';
+        redScoreDisplay.style.visibility = 'hidden';
+        blackScoreDisplay.style.visibility = 'hidden';
+
+        var gameResults;
+        if (getPlayer(theData["UserID"]) == 1)
+        {
+          gameResults = "Player 2 wins!";
+        }
+        if (getPlayer(theData["UserID"]) == 2)
+        {
+          gameResults = "Player 1 wins!";
+        }
+        gameOverDisplay.innerHTML = gameResults;
+
+        //Sets gameStatus to finished, so the game can end.
+        gameStatus = "finished";
+      }
+      /*
+      else if (theData["commandtype"] === "restart")
+      {
+        var scope = angular.element(document.getElementById("gameContainer")).scope();
+
+        scope.$apply(function() {
+          scope.Restart();
+        });
+      }
+      */
+    }
+
+    //Function to get which player's turn it is from
+    //the game itself.
+    function getTurn(playerNum)
+    {
+      var scope = angular.element(document.getElementById("gameContainer")).scope();
+
+      //Gets which player's turn it is from the game.
+      var currentPlayer = scope.player;
+
+      if (currentPlayer === "Red")
+      {
+        if (playerNum === 1)
+        {
+          return true;
+        }
+        else
+        {
+          return false;
+        }
+      }
+      if (currentPlayer === "Black")
+      {
+        if (playerNum === 2)
+        {
+          return true;
+        }
+        else
+        {
+          return false;
+        }
+      }
+    }
+
+
+    // initialize the CastReceiverManager with an application status message
+    window.castReceiverManager.start({statusText: "Application is starting"});
+    console.log('Receiver Manager started');
+  };
+
+
+  //Function to display testing messages.
+  function displayTest(text) {
+    console.log(text);
+    document.getElementById("testing").innerHTML=text;
+  };
+
+
+
+	</script>
+  </body>
+
+</html>
